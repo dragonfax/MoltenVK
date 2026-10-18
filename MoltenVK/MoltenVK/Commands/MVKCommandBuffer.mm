@@ -1071,10 +1071,22 @@ void MVKCommandEncoder::endCurrentMetalEncoding() {
 	encodeTimestampStageCounterSamples();
 }
 
+// TLG: MVK_CONFIG_CONCURRENT_COMPUTE=1 makes app dispatch encoders concurrent; pipeline barriers then
+// become in-encoder memory barriers. MoltenVK's own compute work stays serial.
+static bool mvkConcurrentCompute() {
+	static const bool enabled = [] {
+		const char* v = getenv("MVK_CONFIG_CONCURRENT_COMPUTE");
+		return v && v[0] == '1';
+	}();
+	return enabled;
+}
+
 static MTLDispatchType getDispatchType(MVKCommandUse use) {
 	switch (use) {
 		case kMVKCommandUseAccumOcclusionQuery:
 			return MTLDispatchTypeConcurrent;
+		case kMVKCommandUseDispatch:
+			return mvkConcurrentCompute() ? MTLDispatchTypeConcurrent : MTLDispatchTypeSerial;
 		default:
 			return MTLDispatchTypeSerial;
 	}
@@ -1095,6 +1107,12 @@ static bool shouldStartNewEncoder(MVKCommandUse prev, MVKCommandUse next) {
 	if (getDispatchType(prev) != getDispatchType(next))
 		return true;
 	return wantsSeparateComputeEncoder(prev) || wantsSeparateComputeEncoder(next);
+}
+
+void MVKCommandEncoder::encodeConcurrentComputeBarrier() {
+	if (_mtlComputeEncoder && _mtlComputeEncoderUse == kMVKCommandUseDispatch && mvkConcurrentCompute()) {
+		[_mtlComputeEncoder memoryBarrierWithScope: MTLBarrierScopeBuffers | MTLBarrierScopeTextures];
+	}
 }
 
 id<MTLComputeCommandEncoder> MVKCommandEncoder::getMTLComputeEncoder(MVKCommandUse cmdUse) {

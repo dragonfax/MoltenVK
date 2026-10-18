@@ -339,6 +339,9 @@ public:
     /** Called by each compute dispatch command to establish any outstanding state just prior to performing the dispatch. */
     void finalizeDispatchState();
 
+	/** TLG: if a concurrent vkCmdDispatch encoder is open, orders its later dispatches after its earlier ones. */
+	void encodeConcurrentComputeBarrier();
+
 	/** Ends the current renderpass. */
 	void endRenderpass();
 

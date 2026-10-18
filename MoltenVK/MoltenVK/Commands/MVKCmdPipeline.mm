@@ -166,6 +166,9 @@ void MVKCmdPipelineBarrier<N>::encode(MVKCommandEncoder* cmdEncoder) {
 		}
 	}
 
+	// TLG: a concurrent dispatch encoder has no implicit order; a barrier must order it.
+	cmdEncoder->encodeConcurrentComputeBarrier();
+
 	// Apple GPUs do not support renderpass barriers, and do not support rendering/writing
 	// to an attachment and then reading from that attachment within a single renderpass.
 	// So, in the case where we are inside a Metal renderpass, we need to split those activities
